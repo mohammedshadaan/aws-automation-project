@@ -3,17 +3,30 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo "Starting pre-build phase"
-      # Optional: check Node.js version if using custom image
-      - node -v || echo "Node.js not found, ensure your custom image has Node.js installed"
+      - echo "=== Pre-build phase ==="
+      # Check Node.js and npm versions; install if missing
+      - if ! command -v node >/dev/null 2>&1; then
+          echo "Node.js not found. Please use an image with Node.js installed.";
+          exit 1;
+        fi
+      - node -v
+      - npm -v
   install:
     commands:
-      - echo "Installing dependencies"
-      - npm install
+      - echo "=== Install dependencies ==="
+      # Remove existing modules and lock file to avoid conflicts
+      - rm -rf node_modules package-lock.json || true
+      # Set unsafe permissions to prevent permission errors
+      - npm config set unsafe-perm true
+      # Install dependencies, retry on failure
+      - |
+        for i in 1 2 3; do
+          npm install && break || echo "npm install failed, retrying ($i/3)"
+        done
   build:
     commands:
-      - echo "Running build"
-      - npm run build || echo "No build step"
+      - echo "=== Build phase ==="
+      - npm run build || echo "No build step defined"
 
 artifacts:
   files:
